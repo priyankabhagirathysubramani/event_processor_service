@@ -1,12 +1,12 @@
 # frozen_string_literal: true
 
 class InvoicePaymentSucceededService < ApplicationService
-  def call(subscription)
-    return unless subscription.present?
+  def call(invoice)
+    return unless invoice.subscription.present?
 
     begin
       Subscription.transaction do
-        existing_subscription = Subscription.find_by(stripe_id: subscription)
+        existing_subscription = Subscription.find_by(stripe_id: invoice.subscription)
         return unless existing_subscription
 
         existing_subscription.update!(state: :paid)
