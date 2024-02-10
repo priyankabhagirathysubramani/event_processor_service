@@ -10,7 +10,17 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 2024_02_09_144254) do
+ActiveRecord::Schema[7.0].define(version: 2024_02_10_120147) do
+  create_table "stripe_webhook_events", force: :cascade do |t|
+    t.json "data"
+    t.integer "state", default: 0
+    t.string "external_id"
+    t.string "processing_errors"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.string "event_type"
+  end
+
   create_table "subscriptions", force: :cascade do |t|
     t.string "stripe_id"
     t.integer "state", default: 0

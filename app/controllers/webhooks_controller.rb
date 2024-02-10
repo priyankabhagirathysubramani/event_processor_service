@@ -2,9 +2,10 @@
 
 class WebhooksController < ApplicationController
   rescue_from JSON::ParserError, Stripe::SignatureVerificationError, with: :render_bad_request
+
   # Handle incoming webhook events from Stripe
   def stripe
-    handle_event
+    enqueue_event_processing
 
     head :ok
   end
@@ -21,12 +22,9 @@ class WebhooksController < ApplicationController
     request.env['HTTP_STRIPE_SIGNATURE']
   end
 
-  # Use factory to get the appropriate service based on event type
-  def handle_event
-    service = EventHandlers::Factory.call(event.type)
-    return unless service
-
-    service.call(event.data.object)
+  # Do the processing in bg
+  def enqueue_event_processing
+    StripeEventProcessingWorker.perform_async(event.to_json)
   end
 
   def render_bad_request(exception)

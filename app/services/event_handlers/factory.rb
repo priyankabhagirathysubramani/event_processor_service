@@ -9,11 +9,11 @@ module EventHandlers
     def call
       case event_type
       when 'customer.subscription.created'
-        CreateSubscriptionService.new
+        CreateSubscriptionService
       when 'invoice.payment_succeeded'
-        InvoicePaymentSucceededService.new
+        InvoicePaymentSucceededService
       when 'customer.subscription.deleted'
-        DeleteSubscriptionService.new
+        DeleteSubscriptionService
       else 
         nil
       end

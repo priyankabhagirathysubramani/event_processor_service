@@ -1,18 +1,20 @@
 # frozen_string_literal: true
 
 class CreateSubscriptionService < ApplicationService
-  def call(subscription)
+  def initialize(subscription)
+    @subscription = subscription
+  end
+
+  def call
     return unless subscription && subscription.id.present?
 
-    begin
-      Subscription.transaction do
-        existing_subscription = Subscription.find_by(stripe_id: subscription.id)
-        return if existing_subscription
+    existing_subscription = Subscription.find_by(stripe_id: subscription.id)
+    return if existing_subscription
 
-        Subscription.create!(stripe_id: subscription.id)
-      end
-    rescue StandardError => e
-      "Error creating subscription record: #{e.message}"
-    end
+    Subscription.create!(stripe_id: subscription.id)
   end
+
+  private
+
+  attr_reader :subscription
 end

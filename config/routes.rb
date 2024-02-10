@@ -3,9 +3,12 @@ Rails.application.routes.draw do
 
   # Defines the root path route ("/")
   # root "articles#index"
-  resources :webhooks, only: [] do
-    collection do
-      post :stripe
-    end
-  end
+
+  post '/webhooks/stripe', to: 'webhooks#stripe'
+  
+  # resources :webhooks, only: [] do
+  #   collection do
+  #     post :stripe
+  #   end
+  # end
 end
