@@ -24,10 +24,16 @@ class WebhooksController < ApplicationController
 
   # Do the processing in bg
   def enqueue_event_processing
+    return unless supported_event?
+
     StripeEventProcessingWorker.perform_async(event.to_json)
   end
 
   def render_bad_request(exception)
     render status: :bad_request, json: { error: exception.message }
+  end
+
+  def supported_event?
+    STRIPE_EVENTS.include?(event.type)
   end
 end

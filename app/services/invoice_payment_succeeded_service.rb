@@ -2,7 +2,7 @@
 
 class InvoicePaymentSucceededService < ApplicationService
   def initialize(invoice)
-    @subscription = invoice.subscription
+    @subscription = invoice&.subscription
   end
 
   def call
