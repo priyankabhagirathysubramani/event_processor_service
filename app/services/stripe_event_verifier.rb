@@ -2,7 +2,7 @@
 
 # StripeEventVerifier is a service object responsible for verifying the authenticity
 # of incoming Stripe webhook events.
-class StripeEventVerifier < ApplicationService
+class  StripeEventVerifier < ApplicationService
   # Initializes a new instance of the StripeEventVerifier.
   #
   # @param payload [String] The payload of the incoming webhook event.

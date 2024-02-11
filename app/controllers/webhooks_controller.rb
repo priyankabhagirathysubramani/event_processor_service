@@ -10,7 +10,7 @@ class WebhooksController < ApplicationController
   # Handles incoming webhook events from Stripe.
   def stripe
     enqueue_event_processing if supported_event?
-    head :ok
+    head :accepted
   end
 
   private

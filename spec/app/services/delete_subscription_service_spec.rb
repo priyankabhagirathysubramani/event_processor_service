@@ -2,12 +2,11 @@ require 'rails_helper'
 
 RSpec.describe DeleteSubscriptionService, type: :service do
   describe '.call' do
-    let(:subscription_id) { 'subscription_id' }
-    let(:stripe_subscription) { double('Subscription', id: subscription_id) }
+    let(:stripe_subscription) { StripeMock.mock_webhook_event('customer.subscription.created') }
 
     context 'when subscription exists and is paid' do
       it 'cancels the subscription' do
-        paid_subscription = create(:subscription, stripe_id: subscription_id, state: 'paid')
+        paid_subscription = create(:subscription, stripe_id: stripe_subscription.id, state: 'paid')
         class_return = DeleteSubscriptionService.call(stripe_subscription)
         paid_subscription.reload
         expect(class_return).to be_truthy
@@ -22,13 +21,13 @@ RSpec.describe DeleteSubscriptionService, type: :service do
       end
 
       it 'when stripe subscription doesnt exist in our subscription table' do
-        Subscription.find_by(stripe_id: subscription_id)&.destroy!
+        Subscription.find_by(stripe_id: stripe_subscription.id)&.destroy!
         class_return = DeleteSubscriptionService.call(stripe_subscription)
         expect(class_return).to be_nil
       end
 
       it 'when subscription exists but is not paid' do
-        existing_subscription = create(:subscription, stripe_id: subscription_id, state: 'unpaid')
+        existing_subscription = create(:subscription, stripe_id: stripe_subscription.id, state: 'unpaid')
         class_return = DeleteSubscriptionService.call(stripe_subscription)
         expect(class_return).to be_nil
         existing_subscription.reload

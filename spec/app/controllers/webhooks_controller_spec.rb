@@ -1,63 +1,33 @@
 # frozen_string_literal: true
 
 require 'rails_helper'
+require_relative '../../helpers/stripe_test_helper'
 
-RSpec.describe WebhooksController, type: :controller do
-  describe 'POST #stripe' do
-    let(:event_data) { { id: 'evt_123', type: 'payment_intent.succeeded', data: { object: { id: 'pi_123' } } } }
-    let(:valid_signature) { 'valid_signature' }
-    let(:invalid_signature) { 'invalid_signature' }
-    let(:request_body) { event_data.to_json }
-    let(:headers) { { 'HTTP_STRIPE_SIGNATURE' => valid_signature } }
-
-    before do
-      allow(StripeEventVerifier).to receive(:call).and_return(event_data)
-    end
+RSpec.describe 'WebhooksRequest', type: :request do
+  include StripeTestHelper
+  describe 'POST /webhooks/stripe' do
+    let(:event_data) { StripeMock.mock_webhook_event('customer.subscription.created') }
+    let(:headers) { { 'HTTP_STRIPE_SIGNATURE' => stripe_event_signature(event_data.to_json) } }
 
     context 'when signature is valid' do
       it 'enqueues event processing in the background' do
-        expect(StripeEventProcessingWorker).to receive(:perform_async).with(event_data.to_json)
-        post :stripe, body: request_body
-      end
-
-      it 'responds with 200 OK' do
-        post :stripe, body: request_body
-        expect(response).to have_http_status(:ok)
+        expect(StripeEventProcessingWorker).to receive(:perform_async)
+        post webhooks_stripe_path, params: event_data.to_json, headers: headers
+        expect(response).to have_http_status(:accepted)
       end
     end
 
-    context 'when signature is invalid' do
-      let(:headers) { { 'HTTP_STRIPE_SIGNATURE' => invalid_signature } }
-
-      it 'does not enqueue event processing' do
-        expect(StripeEventProcessingWorker).not_to receive(:perform_async)
-        post :stripe, body: request_body
-      end
-
+    context 'when Json passed is invalid' do
       it 'responds with 400 Bad Request' do
-        post :stripe, body: request_body
+        post webhooks_stripe_path, params: '{', headers: headers
         expect(response).to have_http_status(:bad_request)
       end
     end
 
-    context 'when JSON::ParserError occurs' do
-      before do
-        allow(StripeEventVerifier).to receive(:call).and_raise(JSON::ParserError)
-      end
-
+    context 'when Signature passed is invalid' do
       it 'responds with 400 Bad Request' do
-        post :stripe, body: request_body
-        expect(response).to have_http_status(:bad_request)
-      end
-    end
-
-    context 'when Stripe::SignatureVerificationError occurs' do
-      before do
-        allow(StripeEventVerifier).to receive(:call).and_raise(Stripe::SignatureVerificationError)
-      end
-
-      it 'responds with 400 Bad Request' do
-        post :stripe, body: request_body
+        headers['HTTP_STRIPE_SIGNATURE'] = 'invalid_signature'
+        post webhooks_stripe_path, params: event_data.to_json, headers: headers
         expect(response).to have_http_status(:bad_request)
       end
     end

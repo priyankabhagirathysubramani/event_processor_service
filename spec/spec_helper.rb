@@ -91,4 +91,12 @@ RSpec.configure do |config|
   # as the one that triggered the failure.
   Kernel.srand config.seed
 =end
+config.before(:each) do
+  @stripe_test_helper = StripeMock.create_test_helper
+  StripeMock.start
+end
+
+config.after(:each) do
+  StripeMock.stop
+end
 end
