@@ -3,49 +3,36 @@ require 'rails_helper'
 RSpec.describe DeleteSubscriptionService, type: :service do
   describe '.call' do
     let(:subscription_id) { 'subscription_id' }
-    let(:subscription) { double('Subscription', id: subscription_id) }
+    let(:stripe_subscription) { double('Subscription', id: subscription_id) }
 
     context 'when subscription exists and is paid' do
       it 'cancels the subscription' do
-        existing_subscription = instance_double(Subscription, state: 'paid')
-        allow(Subscription).to receive(:transaction).and_yield
-        allow(Subscription).to receive(:find_by).with(stripe_id: subscription_id).and_return(existing_subscription)
-
-        expect(existing_subscription).to receive(:update!).with(state: :canceled)
-
-        DeleteSubscriptionService.call(subscription)
+        paid_subscription = create(:subscription, stripe_id: subscription_id, state: 'paid')
+        class_return = DeleteSubscriptionService.call(stripe_subscription)
+        paid_subscription.reload
+        expect(class_return).to be_truthy
+        expect(paid_subscription).to be_canceled
       end
     end
 
-    context 'when subscription does not exist' do
-      it 'does not attempt to cancel the subscription' do
-        allow(Subscription).to receive(:transaction).and_yield
-        allow(Subscription).to receive(:find_by).with(stripe_id: subscription_id).and_return(nil)
-
-        expect_any_instance_of(Subscription).not_to receive(:update!)
-
-        DeleteSubscriptionService.call(subscription)
+    context 'does not attempt to cancel the subscription' do
+      it 'when stripe subscription is not passed' do
+        class_return = DeleteSubscriptionService.call(nil)
+        expect(class_return).to be_nil
       end
-    end
 
-    context 'when subscription exists but is not paid' do
-      it 'does not attempt to cancel the subscription' do
-        existing_subscription = instance_double(Subscription, state: 'unpaid')
-        allow(Subscription).to receive(:transaction).and_yield
-        allow(Subscription).to receive(:find_by).with(stripe_id: subscription_id).and_return(existing_subscription)
-
-        expect(existing_subscription).not_to receive(:update!)
-
-        DeleteSubscriptionService.call(subscription)
+      it 'when stripe subscription doesnt exist in our subscription table' do
+        Subscription.find_by(stripe_id: subscription_id)&.destroy!
+        class_return = DeleteSubscriptionService.call(stripe_subscription)
+        expect(class_return).to be_nil
       end
-    end
 
-    context 'when an error occurs during deletion' do
-      it 'returns an error message' do
-        error_message = 'Something went wrong'
-        allow(Subscription).to receive(:transaction).and_raise(StandardError, error_message)
-
-        expect(DeleteSubscriptionService.call(subscription)).to eq("Error deleting subscription record: #{error_message}")
+      it 'when subscription exists but is not paid' do
+        existing_subscription = create(:subscription, stripe_id: subscription_id, state: 'unpaid')
+        class_return = DeleteSubscriptionService.call(stripe_subscription)
+        expect(class_return).to be_nil
+        existing_subscription.reload
+        expect(existing_subscription).not_to be_canceled
       end
     end
   end

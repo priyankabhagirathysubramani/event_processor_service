@@ -1,44 +1,64 @@
+# frozen_string_literal: true
+
 require 'rails_helper'
 
 RSpec.describe WebhooksController, type: :controller do
   describe 'POST #stripe' do
-    let(:payload) { 'payload_data' }
-    let(:sig_header) { 'signature_header' }
-    let(:event_type) { 'customer.subscription.created' }
-    let(:event_data) { double('EventData') }
-    let(:event) { double('Event', type: event_type, data: double('Data', object: event_data)) }
-    let(:service) { instance_double(ServiceBase, call: nil) }
+    let(:event_data) { { id: 'evt_123', type: 'payment_intent.succeeded', data: { object: { id: 'pi_123' } } } }
+    let(:valid_signature) { 'valid_signature' }
+    let(:invalid_signature) { 'invalid_signature' }
+    let(:request_body) { event_data.to_json }
+    let(:headers) { { 'HTTP_STRIPE_SIGNATURE' => valid_signature } }
 
     before do
-      allow(request).to receive(:body).and_return(double('Body', read: payload))
-      allow(request.env).to receive(:[]).with('HTTP_STRIPE_SIGNATURE').and_return(sig_header)
+      allow(StripeEventVerifier).to receive(:call).and_return(event_data)
     end
 
-    context 'when event is successfully parsed' do
-      before do
-        allow(StripeEventVerifier).to receive(:new).with(payload, sig_header).and_return(double('StripeEventVerifier', verify_and_parse_event: event))
+    context 'when signature is valid' do
+      it 'enqueues event processing in the background' do
+        expect(StripeEventProcessingWorker).to receive(:perform_async).with(event_data.to_json)
+        post :stripe, body: request_body
       end
 
-      it 'handles the event with the appropriate service' do
-        expect(ServiceFactory).to receive(:new).with(event_type).and_return(double('ServiceFactory', create_service: service))
-        expect(service).to receive(:call).with(event_data)
-
-        post :stripe
-
+      it 'responds with 200 OK' do
+        post :stripe, body: request_body
         expect(response).to have_http_status(:ok)
       end
     end
 
-    context 'when an error occurs during parsing' do
-      before do
-        allow(StripeEventVerifier).to receive(:new).with(payload, sig_header).and_raise(JSON::ParserError, 'JSON parsing error')
+    context 'when signature is invalid' do
+      let(:headers) { { 'HTTP_STRIPE_SIGNATURE' => invalid_signature } }
+
+      it 'does not enqueue event processing' do
+        expect(StripeEventProcessingWorker).not_to receive(:perform_async)
+        post :stripe, body: request_body
       end
 
-      it 'returns a bad request response' do
-        post :stripe
-
+      it 'responds with 400 Bad Request' do
+        post :stripe, body: request_body
         expect(response).to have_http_status(:bad_request)
-        expect(response.body).to eq({ error: 'JSON parsing error' }.to_json)
+      end
+    end
+
+    context 'when JSON::ParserError occurs' do
+      before do
+        allow(StripeEventVerifier).to receive(:call).and_raise(JSON::ParserError)
+      end
+
+      it 'responds with 400 Bad Request' do
+        post :stripe, body: request_body
+        expect(response).to have_http_status(:bad_request)
+      end
+    end
+
+    context 'when Stripe::SignatureVerificationError occurs' do
+      before do
+        allow(StripeEventVerifier).to receive(:call).and_raise(Stripe::SignatureVerificationError)
+      end
+
+      it 'responds with 400 Bad Request' do
+        post :stripe, body: request_body
+        expect(response).to have_http_status(:bad_request)
       end
     end
   end

@@ -1,39 +1,42 @@
+# frozen_string_literal: true
+
 require 'rails_helper'
 
 RSpec.describe InvoicePaymentSucceededService, type: :service do
-  describe '.call' do
-    let(:subscription_id) { 'subscription_id' }
-    let(:subscription) { double('Subscription', id: subscription_id, state: :unpaid) }
+  describe '#call' do
+    let(:invoice) { double('Invoice', subscription: 'subscription_id') }
+    let(:stripe_subscription) { double('Subscription') }
 
     context 'when subscription exists' do
-      it 'changes the subscription state to paid' do
-        existing_subscription = instance_double(Subscription)
-        allow(Subscription).to receive(:transaction).and_yield
-        allow(Subscription).to receive(:find_by).with(stripe_id: subscription_id).and_return(existing_subscription)
-
-        expect(existing_subscription).to receive(:update!).with(state: :paid)
-
-        InvoicePaymentSucceededService.call(subscription_id)
+      it 'updates the subscription state to paid' do
+        subscription = create(:subscription, stripe_id: 'subscription_id', state: 'unpaid')
+        class_return = InvoicePaymentSucceededService.call(invoice)
+        subscription.reload
+        expect(subscription).to be_paid
+        expect(class_return).to be_truthy
       end
     end
 
     context 'when subscription does not exist' do
       it 'does not attempt to change the subscription state' do
-        allow(Subscription).to receive(:transaction).and_yield
-        allow(Subscription).to receive(:find_by).with(stripe_id: subscription_id).and_return(nil)
-
-        expect(Subscription).not_to receive(:update!)
-
-        InvoicePaymentSucceededService.call(subscription_id)
+        Subscription.find_by(stripe_id: 'subscription_id')&.destroy
+        class_return = InvoicePaymentSucceededService.call(invoice)
+        expect(class_return).to be_nil
       end
     end
 
-    context 'when an error occurs during state change' do
-      it 'returns an error message' do
-        error_message = 'Something went wrong'
-        allow(Subscription).to receive(:transaction).and_raise(StandardError, error_message)
+     context 'when stripe invoice is not passed' do
+      it 'does not attempt to change the subscription state' do
+        class_return = InvoicePaymentSucceededService.call(nil)
+        expect(class_return).to be_nil
+      end
+    end
 
-        expect(InvoicePaymentSucceededService.call(subscription_id)).to eq("Error changing subscription state: #{error_message}")
+     context 'when stripe invoice does not have a subscription' do
+      it 'does not attempt to change the subscription state' do
+        new_invoice = double('Invoice', subscription: nil)
+        class_return = InvoicePaymentSucceededService.call(new_invoice)
+        expect(class_return).to be_nil
       end
     end
   end
