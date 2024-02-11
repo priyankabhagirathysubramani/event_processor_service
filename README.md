@@ -30,7 +30,13 @@ After cloning the repo, the basic setup commands are:
 ```sh
 cd event_processing_service
 bundle install
-add the stripe account secret keys, webhook secrets to credentials file using bundle exec rails credentials:edit
+add the stripe account secret keys, webhook secrets to credentials file using:
+	bundle exec rails credentials:edit
+	Add values in credentials file in the below format:
+	stripe:
+		webhook_secrets: <your wh_... value>
+		secret_key: <your secret key value from stripe API keys>
+		signing_secret: <your signing secret value from stripe>
 bin/dev
 ```
 
