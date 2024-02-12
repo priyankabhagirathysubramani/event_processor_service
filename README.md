@@ -37,10 +37,11 @@ add the stripe account secret keys, webhook secrets to credentials file using:
 		webhook_secrets: <your wh_... value>
 		secret_key: <your secret key value from stripe API keys>
 		signing_secret: <your signing secret value from stripe>
+bin/setup
 bin/dev
 ```
 
-bin/dev:
+bin/setup, bin/dev:
 	This script is used to start the development environment for a Ruby application. It sets up the environment and runs the necessary processes defined in the Procfile using Foreman(gem). Used foreman gem so that its easy to spin up both rails server and sidekiq server and also setup the db.
 
 ### Database Deisgn
