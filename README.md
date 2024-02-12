@@ -81,10 +81,10 @@ Endpoint exposed: http://localhost:3000/webhooks/stripe to listen to the given s
 Have exposed an endpoint http://localhost:3000/webhooks/stripe to listen to the given stripe webhook events
 Designed and developed with the Webhook best practices mentioned in the Stripe Document - https://stripe.com/docs/webhooks#best-practices
 
-1. The db deisgn is simple and have kept the subscription table small with only two columns stripe_id and state as thsi is the only use case that we are trying to solve at the moment. We can extend this table to have customer information or any other informationa nd have associations for a future scope.
-2. The endpoint does not process the request if there are JSONErrors or SignatureVerificationError in teh request that comes from the stripe webhook.
-3. Once the verification is done, we first check for the events if it's an event we actually want to process in our application, else no action is taken and goes on to processing the next request. ( For now we are storing this in a constant file, if this list gets bigger we can add a logic in event_handlers -> factory and do the check as a future scope )
-4. If the event received is either of the events we support, we send the request to be processed to sidekiq worker in the background and immedietly respond with a status 200 to stripe. Since we send only the required events, its made sure that we don't add extra burden to the workers or store unecessary data in redis.
+1. The db deisgn is simple and have kept the subscription table small with only two columns stripe_id and state as the only use case that we are trying to solve at the moment is to chnage the state of a particular subscription. We can extend this table to have customer information or any other informationa nd have associations for a future scope.
+2. The endpoint does not process the request if there are JSONErrors or SignatureVerificationError in the request that comes from the stripe webhook and returns 4xx.
+3. Once the verification is done, we first check for the events, if it's an event type that we actually want to process in our application, else no action is taken and goes on to processing the next request. ( For now we are storing this in a constant file, if this list gets bigger we can add a logic in event_handlers -> factory and do the check as a future scope )
+4. If the event received is any of the events we support, we send the request to be processed to sidekiq worker in the background and immedietly respond with a status 200 to stripe. Since we send only the required events, its made sure that we don't add extra burden to the workers or store unecessary data in redis.
 5. Used event_handlers -> factory to identify the service that needs to be used for processing of the particular event.
 6. Have divided the processing of different events into service classes which can be reused anywhere and provides a proper logical separation between teh processing logic. For future scope this can be reorganised a bit by adding subscription folder and making it a module which can have creation service, deletion service and other subscription related services. An invoice module to handle invoiuce related events.
 7. Since we use factory and separate service classes, it would be easier to extend the app to process new events required at a later stage. All we would need to do is, add the event in constants file, add case in factory with the corresponding Service class name, add a service class in services folder. This ensures scalability.
@@ -92,4 +92,12 @@ Designed and developed with the Webhook best practices mentioned in the Stripe D
 9. Have handled duplicate event processing by making it idempotent. Have logged the events that are processed using a table StripeWebhookEvents(using external_id-> idempotency_key and event_type). This might also prevent replay attacks.
 10. I'm aware that CSRF protection that is protect_from_forgery needs to be excluded for this stripe webhook endpoint in teh app, but for the local scope as it works as is havent included, but in production scope can be added later.
 11. For the scope of local project jhave not whitelisted the stripe endpoints from which these events can come. Can be whitlisted in production scope.
-12. Have covered the code base with rspecs, with unit test for even edge cases for separate files and achieved 100% coverage.
+12. Have covered the code base with rspecs, with unit test for even edge cases for separate files and achieved good coverage for both positive and error scenarios.
+13. Events That are used for the scenarios mentioned in Acceptence criteria are: customer.subscription.created, customer.subscription.deleted and for first time payment for an invoice in a asubscription as invoice.payment_succeeded. If teh event needs to be chnaged can be easily done.
+
+### Tests using rspec
+We can run the test for the repo containing the app:
+```sh
+ cd event_processing_service/spec
+ rspec
+```

@@ -20,7 +20,7 @@ RSpec.describe StripeEventProcessingWorker, type: :worker do
     end
 
     it 'does not create a new StripeWebhookEvent if found' do
-      exisisting_stripe_webhook_event = create(:stripe_webhook_event, external_id: stripe_subscription_event.request.idempotency_key, event_type: stripe_subscription_event.type)
+      exisisting_stripe_webhook_event = create(:stripe_webhook_event, external_id: stripe_subscription_event.request.idempotency_key, event_type: stripe_subscription_event.type, data: stripe_subscription_event.data )
       size_before_perform = StripeWebhookEvent.all.size
       worker.perform(stripe_subscription_event.to_json)
       expect(StripeWebhookEvent.all.size).to eq(size_before_perform)

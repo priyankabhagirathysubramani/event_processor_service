@@ -17,7 +17,7 @@ class StripeEventProcessingWorker
     stripe_event = Stripe::Util.convert_to_stripe_object(JSON.parse(args, symbolize_names: true))
 
     # Find or create a StripeWebhookEvent record based on the external ID and event type
-    event = StripeWebhookEvent.find_by(external_id: stripe_event.request.idempotency_key, event_type: stripe_event.type)
+    event = StripeWebhookEvent.find_by(external_id: stripe_event.request.idempotency_key,data: stripe_event.data, event_type: stripe_event.type)
 
     # Create a new StripeWebhookEvent if not found
     event ||= StripeWebhookEvent.create(external_id: stripe_event.request.idempotency_key, data: stripe_event.data, event_type: stripe_event.type)
