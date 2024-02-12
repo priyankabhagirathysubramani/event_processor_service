@@ -67,21 +67,21 @@ Endpoint exposed: http://localhost:3000/webhooks/stripe to listen to the given s
 		https://stripe.com/docs/cli/listen
 
 2. Add your secret key to the application credentials file.
-3. Install stripe-cli and listen to stripe webhook events and forward teh same to our API endpoint.
+3. Install stripe-cli and listen to stripe webhook events and forward the same to our API endpoint.
 4. Run the redis-server.
 5. Run the rails server, sidekiq server for bg processing using bin/setup.
 6. From UI create subscription without paying the invoice immedietly on subscription creation, this sends an event to app and adds a subscription entry with unpaid state. Also adds an entry in stripe webhook evnets table that with processed state.
-7. From invoices page, 'Charge Customer' for the invoice that got created for our subscription. This sends invoice.payment_succeeded to our app and changes teh state of the unpaid subscription to paid.
+7. From invoices page, 'Charge Customer' for the invoice that got created for our subscription. This sends invoice.payment_succeeded to our app and changes the state of the unpaid subscription to paid.
 8. Cancel this subscription which sends corresponding event and changes the state as mentioned in problem statement to canceled.
 9. We can also simulate the same with -> stripe trigger ;customer.subscription.created' from the cli.
 
 
 ### Assumptions done during implementation in the scope of this project/ Project Structure
 
-Have exposed an endpoint http://localhost:3000/webhooks/stripe in the app only application spun up to listen to the given stripe webhook events, designed and developed with the Webhook best practices mentioned in the Stripe Document - https://stripe.com/docs/webhooks#best-practices
+Have exposed an endpoint http://localhost:3000/webhooks/stripe in the api only application spun up to listen to the given stripe webhook events, designed and developed with the Webhook best practices mentioned in the Stripe Document - https://stripe.com/docs/webhooks#best-practices
 
 1. The db deisgn is simple and have kept the subscription table minimal with only two columns stripe_id and state, as the only use case that we are trying to solve at the moment is to chnage the state of a particular subscription. We can extend this table to have customer information or any other information and have associations as a future scope.
-2. Events that are used for the scenarios mentioned in Acceptence criteria are: customer.subscription.created, customer.subscription.deleted and for first time payment for an invoice in a asubscription as invoice.payment_succeeded. If teh event needs to be chnaged can be easily done.
+2. Events that are used for the scenarios mentioned in Acceptence criteria are: customer.subscription.created, customer.subscription.deleted and for first time payment for an invoice in a asubscription as invoice.payment_succeeded. If the event needs to be changed can be easily done.
 3. The endpoint does not process the request if there are JSONErrors or SignatureVerificationError in the request that comes from the stripe webhook and returns 4xx.
 4. Once the verification is done, we first check for the events, if it's an event type that we actually want to process in our application, else no action is taken and goes on to processing the next request. ( For now we are storing this in a constant file, if this list gets bigger we can add a logic in event_handlers -> factory and do the check as a future scope )
 5. If the event received is any of the events we support, we send the request to be processed to sidekiq worker in the background and immedietly respond with a status 202 accepted to stripe. Since we send only the required events, its made sure that we don't add extra burden to the workers or store unecessary data in redis.
