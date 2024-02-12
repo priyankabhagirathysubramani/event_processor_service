@@ -41,7 +41,10 @@ bin/setup
 bin/dev
 ```
 
-bin/setup, bin/dev:
+bin/setup:
+	This script does bundle install, boots the db and runs the uptodate latest migration and sets up the prerequisites to run teh rails server.
+
+bin/dev:
 	This script is used to start the development environment for a Ruby application. It sets up the environment and runs the necessary processes defined in the Procfile using Foreman(gem). Used foreman gem so that its easy to spin up both rails server and sidekiq server and also setup the db.
 
 ### Database Deisgn
